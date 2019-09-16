@@ -1,6 +1,7 @@
 package com.acme.acmetrade.endpoints;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import javax.validation.ConstraintViolationException;
 import javax.validation.Valid;
@@ -23,8 +24,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import lombok.*;
+import com.acme.acmetrade.services.MockQuotesGenerator;
+import com.acme.acmetrade.services.QuoteGeneratorFunction;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.ApiResponse;
+import lombok.Data;
+import lombok.AllArgsConstructor;
+
+@Api(value="ACME Trader Mock Quote Generator")
 @RestController
 @Validated
 public class MockQuotesGeneratorEndpoint {
@@ -33,16 +45,25 @@ public class MockQuotesGeneratorEndpoint {
 	@Autowired
 	private MockQuotesGenerator mockQuotesGenerator;
 
-	@GetMapping(value = "/version", produces = "application/json")
+	@ApiOperation(value="Gets the current version of the endpoint", 
+			  response=GetVersionResponse.class)
+	@GetMapping("/version")
 	public GetVersionResponse getVersion() {
 		return new GetVersionResponse("1");
 	}
 
 	@Data
+	@AllArgsConstructor
 	public static class GetVersionResponse {
-		private @NonNull String version;
+		private String version;
 	}
 
+	@ApiOperation(value="Generates mock quotes for a given ticker symbol", 
+			      response=GenerateMockQuotesResponse.class)
+	@ApiResponses(value = {
+		@ApiResponse(code=201, message="Successfully generated mock quotes file"),
+		// other response status codes are defined globally in SwaggerConfig.java
+	})
 	@PostMapping(value = "/mock-quotes", 
 				 consumes = "application/json", 
 				 produces = "application/json")
@@ -62,19 +83,45 @@ public class MockQuotesGeneratorEndpoint {
 		}
 	}
 
+	@ApiModel("DTO for request to generate mock quotes")
 	@Data
 	@AllArgsConstructor
 	public static class GenerateMockQuotesRequest {
-		private @NotNull @Pattern(regexp = "^\\w{1,6}$") String symbol;
-		private @NotNull @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$") String startDate;
-		private @NotNull @Min(1) @Max(3650) Integer days;
-		private @NotNull @Pattern(regexp = "^[\\w]{1,50}$") String function;
+		@ApiModelProperty("The ticker symbol")
+		@NotNull @Pattern(regexp = "^\\w{1,6}$") 
+		private String symbol;
+		
+		@ApiModelProperty("The start date in yyyy-MM-dd format")
+		@NotNull @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$") 
+		private String startDate;
+		
+		@ApiModelProperty("The number of days to generate: min 1, max 10958 (30 years)")
+		@NotNull @Min(1) @Max(10958) 
+		private Integer days;
+		
+		@ApiModelProperty("The generator function to use. For a list of valid function names, " +
+						  "send a request to /functions")
+		@NotNull @Pattern(regexp = "^[\\w]{1,64}$") 
+		private String function;
 	}
 
 	@Data
 	@AllArgsConstructor
 	public static class GenerateMockQuotesResponse {
-		private @NotNull String filename;
+		private String filename;
+	}
+
+	@ApiOperation(value="Gets a list of support generator functions", 
+				  response=GetSupportedFunctionsResponse.class)
+	@GetMapping("/functions")
+	public GetSupportedFunctionsResponse getSupportedFunctions() {
+		return new GetSupportedFunctionsResponse(mockQuotesGenerator.getSupportedFunctions());
+	}
+	
+	@Data
+	@AllArgsConstructor
+	public static class GetSupportedFunctionsResponse {
+		private List<String> functions;
 	}
 
 	@ExceptionHandler(ConstraintViolationException.class)

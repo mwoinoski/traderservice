@@ -13,6 +13,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.ClassMode;
 
@@ -39,10 +40,16 @@ public class MockQuotesGeneratorEndpointIntegrationTest {
         .when()
             .get("/version")
         .then()
-            .statusCode(200)
+            .statusCode(HttpStatus.OK.value())
             .body("version", equalTo("1"));
     }
     
+    /**
+     * POST /mock-quotes
+     * Content-Type: application/json
+     * Accept: application/json
+     * {"symbol": "GOOG", "startDate": "2019-01-01", "days": 100, "function": "LinearIncrease"}
+     */
     @Test
     public void generateMockQuotes() throws Exception {
         given()
@@ -53,8 +60,8 @@ public class MockQuotesGeneratorEndpointIntegrationTest {
         .when()
         	.post("/mock-quotes")
 	    .then()
-	        .statusCode(200)
-	        .body("filename", equalTo("AAPL_20190101_100_LinearIncrease.csv"));
+	        .statusCode(HttpStatus.CREATED.value())
+	        .body("filename", equalTo("AAPL_20190101_100_LinearIncrease.json"));
     }
 
 }
